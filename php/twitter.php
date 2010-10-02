@@ -11,8 +11,8 @@ public function makeTwitterDate($src) {
 	if ($diff->h > 0) {
 		return "約" . $diff->h . "時間前";
 	}
-	if ($diff->m > 0) {
-		return $diff->m . "分前";		
+	if ($diff->i > 0) {
+		return $diff->i . "分前";		
 	}
 	return $diff->s . "秒前";
 }
