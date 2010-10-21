@@ -2,6 +2,7 @@ public function makeTwitterDate($src) {
 	$date = new DateTime($src);
 	$now = new DateTime();
 	$diff = $date->diff($now, true);
+	$date = new DateTime($src);
 	if ($diff->y > 0) {
 		return $date->format("g:i A M jS, Y");
 	}
