@@ -1,7 +1,11 @@
 <?php
 /**
  * Auther aoyagikouhei
+ * 2011/07/09 ver 1.1
+ * Add capped collection : Thank you joblo
+ * 
  * 2011/06/23 ver 1.0
+ * First release
  *
  * Install
  * Extract the release file under protected/extensions
@@ -18,17 +22,20 @@
       ),
     ),
  *
- * options
- * connectionString : host:port             : defalut localhost:27017
- * dbName           : database name         : default test
- * collectionName   : collaction name       : default yiilog
- * message          : message column name   : default message
- * level            : level column name     : default level
- * category         : category column name  : default category
- * timestamp        : timestamp column name : default timestamp
- * timestampType    : float or date         : default float
+ * Options
+ * connectionString        : host:port                      : defalut localhost:27017
+ * dbName                  : database name                  : default test
+ * collectionName          : collaction name                : default yiilog
+ * message                 : message column name            : default message
+ * level                   : level column name              : default level
+ * category                : category column name           : default category
+ * timestamp               : timestamp column name          : default timestamp
+ * timestampType           : float or date                  : default float
+ * collectionSize          : capped collection size         : default 10000
+ * collectionMax           : capped collection max          : default 100
+ * installCappedCollection : capped collection install flag : default false
  *
- * example
+ * Example
    'log'=>array(
       'class'=>'CLogRouter',
       'routes'=>array(
@@ -44,10 +51,17 @@
           'category' => 'category',
           'timestamp' => 'timestamp',
           'timestampType' => 'float',
+          ,'collectionSize' => 10000
+          ,'collectionMax' => 100
+          ,'installCappedCollection' => true
         ),
       ),
     ),
  *
+ * Capped colection
+ * 1. set installCappedCollection true in main.php.
+ * 2. run application and loged
+ * 3. remove installCappedCollection in main.php.
  */
 class EMongoDbLogRoute extends CLogRoute
 {
@@ -90,7 +104,22 @@ class EMongoDbLogRoute extends CLogRoute
    * @var string timestamp type name float or date
    */
   public $timestampType="float";
-
+  
+  /**
+   * @var integer capped collection size
+   */
+  public $collectionSize=10000;
+  
+  /**
+   * @var integer capped collection max
+   */
+  public $collectionMax=100;
+  
+  /**
+   * @var boolean capped collection install flag
+   */
+  public $installCappedCollection = false;
+  
   /**
   /**
    * @var Mongo mongo Db collection
@@ -107,7 +136,16 @@ class EMongoDbLogRoute extends CLogRoute
     $connection = new Mongo($this->connectionString);
     $dbName = $this->dbName;
     $collectionName = $this->collectionName;
-    $this->collection = $connection->$dbName->$collectionName;
+    if ($this->installCappedCollection) {
+      $this->collection = $connection->$dbName->createCollection(
+        $collectionName, 
+        true, 
+        $this->collectionSize, 
+        $this->collectionMax
+      );
+    } else {
+      $this->collection = $connection->$dbName->$collectionName;
+    }
   }
 
   /**
