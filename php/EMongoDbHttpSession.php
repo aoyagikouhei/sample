@@ -1,7 +1,12 @@
 <?php
 /**
  * Auther aoyagikouhei
+ *
+ * * 2011/08/01 ver 1.1
+ * Add fsync, safe, timeout options
+ *
  * 2011/07/05 ver 1.0
+ * First release
  *
  * Install
  * Extract the release file under protected/extensions
@@ -12,12 +17,15 @@
     ),
  *
  * options
- * connectionString : host:port          : defalut localhost:27017
- * dbName           : database name      : default test
- * collectionName   : collaction name    : default yiisession
- * idColumn         : id column name     : default id
- * dataColumn       : data column name   : default dada
- * expireColumn     : expire column name : default expire
+ * connectionString : host:port           : defalut localhost:27017
+ * dbName           : database name       : default test
+ * collectionName   : collaction name     : default yiisession
+ * idColumn         : id column name      : default id
+ * dataColumn       : data column name    : default dada
+ * expireColumn     : expire column name  : default expire
+ * fsync            : fsync flag          : defalut false
+ * safe             : safe flag           : defalut false
+ * timeout          : timeout miliseconds : defalut null i.e. MongoCursor::$timeout
  *
  * example
    'session'=>array(
@@ -65,10 +73,29 @@ class EMongoDbHttpSession extends CHttpSession
   public $expireColumn="expire";
 
   /**
+   * @var boolean forces the update to be synced to disk before returning success.
+   */
+  public $fsync = false;
+
+  /**
+   * @var boolean the program will wait for the database response.
+   */
+  public $safe = false;
+
+  /**
+   * @var boolean if "safe" is set, this sets how long (in milliseconds) for the client to wait for a database response.
+   */
+  public $timeout = null;
+
   /**
    * @var Mongo mongo Db collection
    */
   private $collection;
+
+  /**
+   * @var array insert options
+   */
+  private $options;
    
   /**
    * Initializes the route.
@@ -80,6 +107,13 @@ class EMongoDbHttpSession extends CHttpSession
     $dbName = $this->dbName;
     $collectionName = $this->collectionName;
     $this->collection = $connection->$dbName->$collectionName;
+    $this->options = array(
+      'fsync' => $this->fsync
+      ,'safe' => $this->safe
+    );
+    if (!is_null($this->timeout)) {
+      $this->options['timeout'] = $this->timeout;
+    }
     parent::init();
   }
   
@@ -134,6 +168,8 @@ class EMongoDbHttpSession extends CHttpSession
   */
   public function writeSession($id,$data)
   {
+    $opts = $this->options;
+    $opts['upsert'] = true;
     return $this->collection->update(
       array($this->idColumn => $id)
       ,array(
@@ -141,7 +177,7 @@ class EMongoDbHttpSession extends CHttpSession
         ,$this->expireColumn => $this->getExipireTime()
         ,$this->idColumn => $id
       )
-      ,array('upsert' => true)
+      ,$opts
     );
   }
   
@@ -153,7 +189,8 @@ class EMongoDbHttpSession extends CHttpSession
   */
   public function destroySession($id)
   {
-    return $this->collection->remove(array($this->idColumn => id));
+    return $this->collection->remove(
+      array($this->idColumn => id), $this->options);
   }
   
   /**
@@ -164,7 +201,8 @@ class EMongoDbHttpSession extends CHttpSession
   */
   public function gcSession($maxLifetime)
   {
-    return $this->collection->remove(array($this->expireColumn => array('$lt' => time())));
+    return $this->collection->remove(
+      array($this->expireColumn => array('$lt' => time())), $this->options);
   }
   
   /**
@@ -183,16 +221,17 @@ class EMongoDbHttpSession extends CHttpSession
       $this->collection->insert(array(
         $this->idColumn => $newId
         ,$this->expireColumn => $this->getExipireTime()
-      ));
+      ), $this->options);
     } else if ($deleteOldSession) {
       $this->collection->update(
         array($this->idColumn => $oldId)
         ,array($this->idColumn => $newId)
+        ,$this->options
       );
     } else {
       $row[$this->idColumn] = $newId;
       unset($row['_id']);
-      $this->collection->insert($row);
+      $this->collection->insert($row, $this->options);
     }
   }
 }
