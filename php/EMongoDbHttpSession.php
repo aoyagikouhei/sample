@@ -2,6 +2,9 @@
 /**
  * Auther aoyagikouhei
  *
+ * 2011/08/02 ver 1.2
+ * Modify destroySession
+ *
  * * 2011/08/01 ver 1.1
  * Add fsync, safe, timeout options
  *
@@ -32,7 +35,7 @@
       'class'=>'EMongoDbHttpSession',
       'connectionString' => 'localhost:27017',
       'dbName' => 'test',
-      'collectionName' => 'yiilog',
+      'collectionName' => 'yiisession',
       'idColumn' => 'id',
       'dataColumn' => 'data',
       'expireColumn' => 'expire',
@@ -190,7 +193,7 @@ class EMongoDbHttpSession extends CHttpSession
   public function destroySession($id)
   {
     return $this->collection->remove(
-      array($this->idColumn => id), $this->options);
+      array($this->idColumn => $id), $this->options);
   }
   
   /**
